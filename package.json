@@ -1,0 +1,18 @@
+{
+  "name": "libraria",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "yarn@4.18.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"yarn workspace @libraria/backend start:dev\" \"yarn workspace @libraria/frontend dev\"",
+    "build": "yarn workspace @libraria/backend build && yarn workspace @libraria/frontend build",
+    "typecheck": "yarn workspace @libraria/backend typecheck && yarn workspace @libraria/frontend typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

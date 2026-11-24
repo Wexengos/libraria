@@ -1,0 +1,15 @@
+node_modules/
+.yarn/
+.pnp.*
+backend/src/generated/prisma/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
