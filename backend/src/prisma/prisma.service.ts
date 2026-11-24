@@ -1,13 +1,17 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../generated/prisma/client.js'
+import { getDatabaseUrl } from '../common/config/database-url.js'
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const connectionString = process.env.DATABASE_URL
+    const connectionString = getDatabaseUrl()
+    if (!connectionString) {
+      throw new Error('Set DATABASE_HOST, DATABASE_PORT, DATABASE_NAME, DATABASE_USER, and DATABASE_PASSWORD.')
+    }
     const adapter = new PrismaPg({
-      connectionString: connectionString ?? 'postgresql://localhost:5432/libraria',
+      connectionString,
       max: 5,
       connectionTimeoutMillis: 5_000,
     })
@@ -16,7 +20,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    if (process.env.DATABASE_URL) await this.$connect()
+    await this.$connect()
   }
 
   async onModuleDestroy() {
