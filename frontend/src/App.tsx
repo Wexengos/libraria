@@ -1,6 +1,11 @@
 import { Link, NavLink, Route, Routes } from 'react-router-dom'
 import { ArrowDown, ArrowUpRight, BookOpen, Disc3, Film, Library, Search, Sparkles } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { AuthPage } from './features/auth/auth-page'
+import { ProtectedRoute } from './features/auth/protected-route'
+import { useAuth } from './features/auth/auth-context'
+import { ProfilePage } from './features/profile/profile-page'
+import { supabase } from './lib/supabase'
 
 const categories = [
   { name: 'Films', detail: 'Stories on screen', to: '/films', icon: Film, tone: 'film' },
@@ -70,6 +75,7 @@ function CategoryPage({ title }: { title: string }) {
 }
 
 export default function App() {
+  const { session } = useAuth()
   return <div className="app-shell">
     <header className="topbar">
       <Link className="wordmark" to="/">libraria<span>.</span></Link>
@@ -77,10 +83,16 @@ export default function App() {
         {categories.map(({ name, to }) => <NavLink key={to} to={to}>{name}</NavLink>)}
         <a href="#explore">About</a>
       </nav>
-      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button><button className="sign-in">Sign in <ArrowUpRight size={14} /></button><button aria-label="Open library" className="mobile-library"><Library size={18} /></button></div>
+      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<button aria-label="Open library" className="mobile-library"><Library size={18} /></button></div>
     </header>
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/sign-in" element={<AuthPage mode="sign-in" />} />
+      <Route path="/register" element={<AuthPage mode="register" />} />
+      <Route path="/u/:username" element={<ProfilePage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/profile" element={<ProfilePage />} />
+      </Route>
       <Route path="/films" element={<CategoryPage title="Films" />} />
       <Route path="/music" element={<CategoryPage title="Music" />} />
       <Route path="/books" element={<CategoryPage title="Books" />} />

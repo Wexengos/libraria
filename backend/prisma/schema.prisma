@@ -6,3 +6,15 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model UserProfile {
+  id          String   @id @db.Uuid
+  username    String   @unique @db.VarChar(24)
+  displayName String   @map("display_name") @db.VarChar(80)
+  bio         String?  @db.VarChar(500)
+  avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_profiles")
+}
