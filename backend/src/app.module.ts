@@ -6,9 +6,12 @@ import { AuthModule } from './auth/auth.module.js'
 import { UsersModule } from './users/users.module.js'
 import { MediaModule } from './media/media.module.js'
 import { LibraryModule } from './library/library.module.js'
+import { ReviewsModule } from './reviews/reviews.module.js'
+import { ListsModule } from './lists/lists.module.js'
+import { SocialModule } from './social/social.module.js'
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, MediaModule, LibraryModule],
+  imports: [PrismaModule, AuthModule, UsersModule, MediaModule, LibraryModule, ReviewsModule, ListsModule, SocialModule],
   controllers: [HealthController],
   providers: [HealthService],
 })

@@ -7,6 +7,8 @@ import { useAuth } from './features/auth/auth-context'
 import { ProfilePage } from './features/profile/profile-page'
 import { CreditsPage, MediaDetailPage, MediaSearchPage } from './features/media/media-pages'
 import { LibraryPage } from './features/library/library-pages'
+import { ListDetailPage, ListsPage } from './features/lists/lists-pages'
+import { ActivityFeedPage, CommunityPage } from './features/social/social-pages'
 import { supabase } from './lib/supabase'
 
 const categories = [
@@ -79,20 +81,26 @@ export default function App() {
       <Link className="wordmark" to="/">libraria<span>.</span></Link>
       <nav className="main-nav" aria-label="Main navigation">
         {categories.map(({ name, to }) => <NavLink key={to} to={to}>{name}</NavLink>)}
+        <NavLink to="/community">Community</NavLink>
+        {session && <NavLink to="/activity">Activity</NavLink>}
         <Link to="/credits">Credits</Link>
       </nav>
-      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="library-nav-link" to="/library">My library</Link><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<Link aria-label="Open library" className="mobile-library" to="/library"><Library size={18} /></Link></div>
+      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="library-nav-link" to="/library">My library</Link><Link className="library-nav-link" to="/lists">My lists</Link><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<Link aria-label="Open library" className="mobile-library" to="/library"><Library size={18} /></Link></div>
     </header>
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sign-in" element={<AuthPage mode="sign-in" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
       <Route path="/u/:username" element={<ProfilePage />} />
+      <Route path="/community" element={<CommunityPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/library/:category" element={<LibraryPage />} />
+        <Route path="/lists" element={<ListsPage />} />
+        <Route path="/activity" element={<ActivityFeedPage />} />
       </Route>
+      <Route path="/lists/:id" element={<ListDetailPage />} />
       <Route path="/films" element={<MediaSearchPage category="films" />} />
       <Route path="/films/:id" element={<MediaDetailPage category="films" />} />
       <Route path="/music" element={<MediaSearchPage category="music" />} />

@@ -26,6 +26,20 @@ enum LibraryStatus {
   OWNED
 }
 
+enum ListVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum ActivityType {
+  MEDIA_ADDED
+  RATING_SET
+  LIBRARY_STATUS_CHANGED
+  REVIEW_POSTED
+  LIST_CREATED
+  LIST_ITEM_ADDED
+}
+
 model UserProfile {
   id          String   @id @db.Uuid
   username    String   @unique @db.VarChar(24)
@@ -35,6 +49,11 @@ model UserProfile {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   mediaEntries UserMedia[]
+  reviews      Review[]
+  mediaLists   MediaList[]
+  followers    Follow[]   @relation("follow_target")
+  following    Follow[]   @relation("follow_source")
+  activities   Activity[]
 
   @@map("user_profiles")
 }
@@ -53,6 +72,9 @@ model MediaItem {
   albumDetails        AlbumDetails?
   bookDetails         BookDetails?
   userEntries         UserMedia[]
+  reviews             Review[]
+  listEntries         MediaListItem[]
+  activities          Activity[]
 
   @@index([type, title])
   @@map("media_items")
@@ -120,4 +142,84 @@ model UserMedia {
   @@unique([userId, mediaItemId])
   @@index([userId, status])
   @@map("user_media")
+}
+
+model Review {
+  id              String     @id @default(uuid()) @db.Uuid
+  userId          String     @map("user_id") @db.Uuid
+  mediaItemId     String     @map("media_item_id") @db.Uuid
+  title           String?    @db.VarChar(160)
+  content         String     @db.VarChar(5000)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem       MediaItem   @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  activities      Activity[]
+
+  @@unique([userId, mediaItemId])
+  @@index([mediaItemId, createdAt])
+  @@index([userId, createdAt])
+  @@map("reviews")
+}
+
+model MediaList {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  title       String         @db.VarChar(100)
+  description String?        @db.VarChar(1000)
+  visibility  ListVisibility @default(PRIVATE)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       MediaListItem[]
+  activities  Activity[]
+
+  @@index([userId, updatedAt])
+  @@map("media_lists")
+}
+
+model MediaListItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  listId      String    @map("list_id") @db.Uuid
+  mediaItemId String    @map("media_item_id") @db.Uuid
+  position    Int
+  addedAt     DateTime  @default(now()) @map("added_at") @db.Timestamptz(6)
+  list        MediaList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, mediaItemId])
+  @@unique([listId, position])
+  @@index([mediaItemId])
+  @@map("media_list_items")
+}
+
+model Follow {
+  followerId  String      @map("follower_id") @db.Uuid
+  followingId String      @map("following_id") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  follower    UserProfile @relation("follow_source", fields: [followerId], references: [id], onDelete: Cascade)
+  following   UserProfile @relation("follow_target", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId, followerId])
+  @@map("follows")
+}
+
+model Activity {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  activityType ActivityType @map("activity_type")
+  mediaItemId String?      @map("media_item_id") @db.Uuid
+  reviewId    String?      @map("review_id") @db.Uuid
+  listId      String?      @map("list_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem   MediaItem?   @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  review      Review?      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  list        MediaList?   @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([mediaItemId, createdAt])
+  @@index([listId, createdAt])
+  @@map("activities")
 }

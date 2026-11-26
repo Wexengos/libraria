@@ -2,16 +2,13 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '../generated/prisma/client.js'
 import type { LibraryStatus } from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
-import { MediaProvidersService } from '../media/media-providers.service.js'
-import type { MediaCategory } from '../media/media.types.js'
+import { MediaCatalogService } from '../media/media-catalog.service.js'
 import type { AddLibraryEntryDto, LibraryCategory } from './dto/add-library-entry.dto.js'
 import { statusesByCategory } from './dto/add-library-entry.dto.js'
 import type { LibraryQueryDto } from './dto/library-query.dto.js'
 import type { UpdateLibraryEntryDto } from './dto/update-library-entry.dto.js'
 
 const categoryToMediaType = { films: 'FILM', music: 'ALBUM', books: 'BOOK' } as const
-const categoryToProviderCategory: Record<LibraryCategory, MediaCategory> = { films: 'film', music: 'music', books: 'book' }
-const categoryToProvider: Record<LibraryCategory, string> = { films: 'tmdb', music: 'musicbrainz', books: 'openlibrary' }
 const defaultStatus: Record<LibraryCategory, string> = { films: 'WATCHLIST', music: 'WANT_TO_LISTEN', books: 'WANT_TO_READ' }
 
 const entryInclude = {
@@ -23,16 +20,6 @@ const entryInclude = {
 function presentEntry<T extends { ratingHalfSteps: number | null }>(entry: T) {
   const { ratingHalfSteps, ...rest } = entry
   return { ...rest, rating: ratingHalfSteps === null ? null : ratingHalfSteps / 2 }
-}
-
-function stringDetail(details: Record<string, string | number | null>, key: string): string | null {
-  const value = details[key]
-  return typeof value === 'string' ? value : null
-}
-
-function numberDetail(details: Record<string, string | number | null>, key: string): number | null {
-  const value = details[key]
-  return typeof value === 'number' ? value : null
 }
 
 function dateValue(value: string | null | undefined): Date | null | undefined {
@@ -47,62 +34,36 @@ function dateValue(value: string | null | undefined): Date | null | undefined {
 export class LibraryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly providers: MediaProvidersService,
+    private readonly catalog: MediaCatalogService,
   ) {}
 
   async add(userId: string, dto: AddLibraryEntryDto) {
     this.validateStatus(dto.category, dto.status ?? defaultStatus[dto.category])
-    if (categoryToProvider[dto.category] !== dto.provider) throw new BadRequestException('The provider does not match the selected category.')
-
-    let mediaItem = await this.findMedia(dto.provider, dto.externalId)
-    if (!mediaItem) {
-      const media = await this.providers.get(categoryToProviderCategory[dto.category], dto.externalId)
-      const details = media.details
-      const data: Prisma.MediaItemCreateInput = {
-        title: media.title,
-        description: media.description,
-        type: categoryToMediaType[dto.category],
-        releaseYear: media.releaseYear,
-        coverImageUrl: media.coverImagePath,
-        externalIdentifiers: { create: { provider: media.provider, externalId: media.externalId } },
-        ...(dto.category === 'films'
-          ? { filmDetails: { create: { runtime: numberDetail(details, 'runtime'), director: stringDetail(details, 'director'), originalLanguage: stringDetail(details, 'originalLanguage') } } }
-          : {}),
-        ...(dto.category === 'music'
-          ? { albumDetails: { create: { artist: stringDetail(details, 'artist'), trackCount: numberDetail(details, 'trackCount'), releaseDate: stringDetail(details, 'releaseDate') } } }
-          : {}),
-        ...(dto.category === 'books'
-          ? { bookDetails: { create: { author: stringDetail(details, 'author') } } }
-          : {}),
-      }
-
-      try {
-        mediaItem = await this.prisma.mediaItem.create({ data })
-      } catch (error) {
-        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
-        mediaItem = await this.findMedia(dto.provider, dto.externalId)
-        if (!mediaItem) throw error
-      }
-    }
-
-    if (mediaItem.type !== categoryToMediaType[dto.category]) throw new BadRequestException('That provider identifier belongs to a different media category.')
+    const categoryProvider: Record<LibraryCategory, string> = { films: 'tmdb', music: 'musicbrainz', books: 'openlibrary' }
+    if (categoryProvider[dto.category] !== dto.provider) throw new BadRequestException('The provider does not match the selected category.')
+    const mediaItem = await this.catalog.resolve(dto.category, dto.externalId)
     const startedAt = dateValue(dto.startedAt)
     const completedAt = dateValue(dto.completedAt)
     this.validateDates(startedAt ?? null, completedAt ?? null)
 
     try {
-      const entry = await this.prisma.userMedia.create({
-        data: {
-          userId,
-          mediaItemId: mediaItem.id,
-          status: (dto.status ?? defaultStatus[dto.category]) as LibraryStatus,
-          ratingHalfSteps: dto.rating == null ? null : Math.round(dto.rating * 2),
-          isFavorite: dto.isFavorite ?? false,
-          notes: dto.notes?.trim() || null,
-          startedAt: startedAt ?? null,
-          completedAt: completedAt ?? null,
-        },
-        include: entryInclude,
+      const entry = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.userMedia.create({
+          data: {
+            userId,
+            mediaItemId: mediaItem.id,
+            status: (dto.status ?? defaultStatus[dto.category]) as LibraryStatus,
+            ratingHalfSteps: dto.rating == null ? null : Math.round(dto.rating * 2),
+            isFavorite: dto.isFavorite ?? false,
+            notes: dto.notes?.trim() || null,
+            startedAt: startedAt ?? null,
+            completedAt: completedAt ?? null,
+          },
+          include: entryInclude,
+        })
+        await tx.activity.create({ data: { userId, activityType: 'MEDIA_ADDED', mediaItemId: mediaItem.id } })
+        if (dto.rating != null) await tx.activity.create({ data: { userId, activityType: 'RATING_SET', mediaItemId: mediaItem.id } })
+        return created
       })
       return presentEntry(entry)
     } catch (error) {
@@ -160,17 +121,26 @@ export class LibraryService {
     const completedAt = dateValue(dto.completedAt)
     this.validateDates(startedAt === undefined ? existing.startedAt : startedAt, completedAt === undefined ? existing.completedAt : completedAt)
 
-    const entry = await this.prisma.userMedia.update({
-      where: { id },
-      data: {
-        ...(dto.status === undefined ? {} : { status: dto.status as LibraryStatus }),
-        ...(dto.rating === undefined ? {} : { ratingHalfSteps: dto.rating === null ? null : Math.round(dto.rating * 2) }),
-        ...(dto.isFavorite === undefined ? {} : { isFavorite: dto.isFavorite }),
-        ...(dto.notes === undefined ? {} : { notes: dto.notes?.trim() || null }),
-        ...(startedAt === undefined ? {} : { startedAt }),
-        ...(completedAt === undefined ? {} : { completedAt }),
-      },
-      include: entryInclude,
+    const entry = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.userMedia.update({
+        where: { id },
+        data: {
+          ...(dto.status === undefined ? {} : { status: dto.status as LibraryStatus }),
+          ...(dto.rating === undefined ? {} : { ratingHalfSteps: dto.rating === null ? null : Math.round(dto.rating * 2) }),
+          ...(dto.isFavorite === undefined ? {} : { isFavorite: dto.isFavorite }),
+          ...(dto.notes === undefined ? {} : { notes: dto.notes?.trim() || null }),
+          ...(startedAt === undefined ? {} : { startedAt }),
+          ...(completedAt === undefined ? {} : { completedAt }),
+        },
+        include: entryInclude,
+      })
+      if (dto.status !== undefined && dto.status !== existing.status) {
+        await tx.activity.create({ data: { userId, activityType: 'LIBRARY_STATUS_CHANGED', mediaItemId: existing.mediaItemId } })
+      }
+      if (dto.rating != null && Math.round(dto.rating * 2) !== existing.ratingHalfSteps) {
+        await tx.activity.create({ data: { userId, activityType: 'RATING_SET', mediaItemId: existing.mediaItemId } })
+      }
+      return updated
     })
     return presentEntry(entry)
   }
@@ -178,13 +148,6 @@ export class LibraryService {
   async remove(userId: string, id: string) {
     const result = await this.prisma.userMedia.deleteMany({ where: { id, userId } })
     if (result.count === 0) throw new NotFoundException('Library entry not found.')
-  }
-
-  private findMedia(provider: string, externalId: string) {
-    return this.prisma.externalIdentifier.findUnique({
-      where: { provider_externalId: { provider, externalId } },
-      include: { mediaItem: true },
-    }).then((identifier) => identifier?.mediaItem ?? null)
   }
 
   private validateStatus(category: LibraryCategory, status: string) {

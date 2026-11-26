@@ -6,6 +6,8 @@ import { format, isValid, parseISO } from 'date-fns'
 import { getImageUrl, getMedia, searchMedia } from './media-api'
 import type { MediaCategory } from './media-api'
 import { LibraryActions, LibraryRating } from '../library/library-pages'
+import { ReviewSection } from '../reviews/review-section'
+import { ListActions } from '../lists/lists-pages'
 
 function regionFlag(region: string | undefined) {
   if (!region || !/^[A-Z]{2}$/.test(region)) return ''
@@ -74,7 +76,7 @@ export function MediaSearchPage({ category }: { category: MediaCategory }) {
     <p className="media-intro">{config.intro}</p>
     <label className="media-search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.title.toLowerCase()}…`} aria-label={`Search ${config.title}`} /><span>ENTER A TITLE</span></label>
     {query.trim().length < 2 ? <p className="media-hint">Search by title to discover a {config.noun}.</p> : results.isPending ? <p className="media-hint">Searching the catalogue…</p> : results.isError ? <p className="media-error">{results.error.message}</p> : results.data?.length ? <div className="media-results">{results.data.map((item) => <Link className="media-card" to={`/${category}/${encodeURIComponent(item.externalId)}`} key={item.externalId}>
-      <div className="media-cover">{item.coverImagePath ? <img src={getImageUrl(item.coverImagePath)} alt="" loading="lazy" /> : <span>{item.title.slice(0, 1)}</span>}</div>
+      <div className={`media-cover ${category === 'music' ? 'square' : ''}`}>{item.coverImagePath ? <img src={getImageUrl(item.coverImagePath)} alt="" loading="lazy" /> : <span>{item.title.slice(0, 1)}</span>}</div>
       <div className="media-card-copy"><span className="media-year">{item.releaseYear ?? 'YEAR UNKNOWN'}</span><h2>{item.title}</h2><p>{String(item.details.artist ?? item.details.author ?? '')}</p></div><ArrowUpRight className="media-card-arrow" size={18} />
     </Link>)}</div> : <p className="media-hint">No matches yet. Try another title.</p>}
     {category === 'films' && <p className="provider-credit">Film data provided by TMDB. <Link to="/credits">About our data sources</Link>.</p>}
@@ -92,8 +94,10 @@ export function MediaDetailPage({ category }: { category: MediaCategory }) {
       <div className="detail-copy"><p className="eyebrow">{config.noun.toUpperCase()} · {item.data.releaseYear ?? 'YEAR UNKNOWN'}</p><h1>{item.data.title}<em>.</em></h1><LibraryRating item={item.data} category={category} /><p className="detail-byline">{String(item.data.details.artist ?? item.data.details.author ?? item.data.details.director ?? '')}</p>{item.data.description && <p className="detail-description">{item.data.description}</p>}
       <dl className="detail-facts">{Object.entries(item.data.details).filter(([, value]) => value !== null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/[A-Z]/g, (letter) => ` ${letter}`).toUpperCase()}</dt><dd className={key === 'originalLanguage' ? 'language-value' : undefined}>{formatDetail(key, value)}</dd></div>)}</dl>
       <LibraryActions item={item.data} category={category} />
+      <ListActions item={item.data} category={category} />
       </div>
     </article>}
+    {!item.isPending && !item.isError && item.data && <ReviewSection item={item.data} category={category} />}
   </main>
 }
 

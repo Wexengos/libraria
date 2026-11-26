@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../auth/auth-context'
+import { ActivityFeed, FollowButton, PublicListCards } from '../social/social-components'
+import { fetchSocialSummary, fetchUserActivity, fetchUserLists } from '../social/social-api'
 
 type Profile = {
   id: string
@@ -43,6 +45,14 @@ export function ProfilePage() {
     queryFn: () => fetchProfile(session?.access_token, username),
     enabled: !ownProfile || Boolean(session),
   })
+  const profile = profileQuery.data
+  const social = useQuery({ queryKey: ['social-summary', profile?.username], queryFn: () => fetchSocialSummary(profile!.username), enabled: Boolean(profile) })
+  const activity = useQuery({ queryKey: ['user-activity', profile?.username], queryFn: () => fetchUserActivity(profile!.username), enabled: Boolean(profile) })
+  const lists = useQuery({ queryKey: ['user-lists', profile?.username], queryFn: () => fetchUserLists(profile!.username), enabled: Boolean(profile) })
+
+  useEffect(() => {
+    if (username && session && profile?.id === session.user.id) navigate('/profile', { replace: true })
+  }, [username, session?.user.id, profile?.id, navigate])
 
   useEffect(() => {
     if (profileQuery.data) {
@@ -72,7 +82,7 @@ export function ProfilePage() {
     onSuccess: async (profile) => {
       await queryClient.invalidateQueries({ queryKey: ['profile'] })
       setEditing(false)
-      if (profile) navigate(`/u/${profile.username}`, { replace: true })
+      if (profile) navigate('/profile', { replace: true })
     },
   })
 
@@ -84,7 +94,6 @@ export function ProfilePage() {
   if (profileQuery.isLoading) return <main className="profile-page"><p className="eyebrow">LIBRARIA PROFILE</p><h1>Opening your page…</h1></main>
   if (profileQuery.isError) return <main className="profile-page"><p className="eyebrow">LIBRARIA PROFILE</p><h1>Profile unavailable.</h1><p className="form-message error">{profileQuery.error.message}</p><Link className="text-link" to="/">Back to the beginning <ArrowUpRight size={16} /></Link></main>
 
-  const profile = profileQuery.data
   if (!profile) return null
 
   return <main className="profile-page">
@@ -100,6 +109,11 @@ export function ProfilePage() {
         <span className="profile-since">ARCHIVIST SINCE {new Date(profile.createdAt).getFullYear()}</span>
       </div>
       {ownProfile && <button className="outline-button" onClick={() => setEditing((value) => !value)}>{editing ? 'Cancel edit' : 'Edit profile'}</button>}
+      {!ownProfile && session && social.data && <FollowButton username={profile.username} isFollowing={social.data.isFollowing} />}
+      {!ownProfile && !session && <Link className="outline-button" to="/sign-in">Sign in to follow</Link>}
+    </section>
+    <section className="profile-social-summary" aria-label="Social connections">
+      {social.isPending ? <p className="media-hint">Loading connections…</p> : social.isError ? <p className="media-error">{social.error.message}</p> : <><span><Users size={15} /> <strong>{social.data.followersCount}</strong> followers</span><span><strong>{social.data.followingCount}</strong> following</span></>}
     </section>
     {editing && ownProfile && <form className="profile-edit-form" onSubmit={save}>
       <label>Display name<input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} minLength={1} maxLength={80} required /></label>
@@ -109,9 +123,11 @@ export function ProfilePage() {
       {updateProfile.isError && <p className="form-message error" role="alert">{updateProfile.error.message}</p>}
       <button className="primary-button" disabled={updateProfile.isPending}>{updateProfile.isPending ? 'Saving…' : 'Save profile'}</button>
     </form>}
-    <section className="profile-placeholder">
-      <h2>Your archive is taking shape.</h2>
-      <p>Films, music, books, reviews, and lists will gather here as those features arrive.</p>
+    <section className="profile-content-section"><div className="reviews-heading"><div><p className="eyebrow">WHAT THEY HAVE BEEN UP TO</p><h2>Activity<em>.</em></h2></div></div>
+      {activity.isPending && <p className="media-hint">Loading activity…</p>}{activity.isError && <p className="media-error">{activity.error.message}</p>}{activity.data && <ActivityFeed entries={activity.data} emptyMessage="No recent activity yet." />}
+    </section>
+    <section className="profile-content-section"><div className="reviews-heading"><div><p className="eyebrow">CURATED COLLECTIONS</p><h2>Public lists<em>.</em></h2></div>{ownProfile && <Link className="text-link" to="/lists">Manage lists <ArrowUpRight size={14} /></Link>}</div>
+      {lists.isPending && <p className="media-hint">Loading lists…</p>}{lists.isError && <p className="media-error">{lists.error.message}</p>}{lists.data && <PublicListCards lists={lists.data} />}
     </section>
   </main>
 }

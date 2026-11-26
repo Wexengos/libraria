@@ -71,6 +71,7 @@ export function LibraryActions({ item, category }: { item: MediaResult; category
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['library'] })
       await queryClient.invalidateQueries({ queryKey: ['library-entry'] })
+      await queryClient.invalidateQueries({ queryKey: ['media-reviews', item.provider, item.externalId] })
     },
   })
   const remove = useMutation({
@@ -123,6 +124,7 @@ export function LibraryRating({ item, category }: { item: MediaResult; category:
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['library'] })
       await queryClient.invalidateQueries({ queryKey: ['library-entry'] })
+      await queryClient.invalidateQueries({ queryKey: ['media-reviews', item.provider, item.externalId] })
     },
   })
   const rating = existing?.rating ?? null
