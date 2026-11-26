@@ -5,6 +5,8 @@ import { AuthPage } from './features/auth/auth-page'
 import { ProtectedRoute } from './features/auth/protected-route'
 import { useAuth } from './features/auth/auth-context'
 import { ProfilePage } from './features/profile/profile-page'
+import { CreditsPage, MediaDetailPage, MediaSearchPage } from './features/media/media-pages'
+import { LibraryPage } from './features/library/library-pages'
 import { supabase } from './lib/supabase'
 
 const categories = [
@@ -70,10 +72,6 @@ function HomePage() {
   )
 }
 
-function CategoryPage({ title }: { title: string }) {
-  return <main className="empty-state"><p className="eyebrow">YOUR {title.toUpperCase()} ARCHIVE</p><h1>Coming into focus.</h1><p>This collection will take shape as Libraria grows.</p><Link className="text-link" to="/">Back to the beginning <ArrowUpRight size={16} /></Link></main>
-}
-
 export default function App() {
   const { session } = useAuth()
   return <div className="app-shell">
@@ -81,9 +79,9 @@ export default function App() {
       <Link className="wordmark" to="/">libraria<span>.</span></Link>
       <nav className="main-nav" aria-label="Main navigation">
         {categories.map(({ name, to }) => <NavLink key={to} to={to}>{name}</NavLink>)}
-        <a href="#explore">About</a>
+        <Link to="/credits">Credits</Link>
       </nav>
-      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<button aria-label="Open library" className="mobile-library"><Library size={18} /></button></div>
+      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="library-nav-link" to="/library">My library</Link><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<Link aria-label="Open library" className="mobile-library" to="/library"><Library size={18} /></Link></div>
     </header>
     <Routes>
       <Route path="/" element={<HomePage />} />
@@ -92,11 +90,17 @@ export default function App() {
       <Route path="/u/:username" element={<ProfilePage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/library/:category" element={<LibraryPage />} />
       </Route>
-      <Route path="/films" element={<CategoryPage title="Films" />} />
-      <Route path="/music" element={<CategoryPage title="Music" />} />
-      <Route path="/books" element={<CategoryPage title="Books" />} />
-      <Route path="*" element={<CategoryPage title="Archive" />} />
+      <Route path="/films" element={<MediaSearchPage category="films" />} />
+      <Route path="/films/:id" element={<MediaDetailPage category="films" />} />
+      <Route path="/music" element={<MediaSearchPage category="music" />} />
+      <Route path="/music/:id" element={<MediaDetailPage category="music" />} />
+      <Route path="/books" element={<MediaSearchPage category="books" />} />
+      <Route path="/books/:id" element={<MediaDetailPage category="books" />} />
+      <Route path="/credits" element={<CreditsPage />} />
+      <Route path="*" element={<main className="empty-state"><p className="eyebrow">LIBRARIA</p><h1>Page not found.</h1><Link className="text-link" to="/">Back to the beginning <ArrowUpRight size={16} /></Link></main>} />
     </Routes>
   </div>
 }

@@ -7,6 +7,25 @@ datasource db {
   provider = "postgresql"
 }
 
+enum MediaType {
+  FILM
+  ALBUM
+  BOOK
+}
+
+enum LibraryStatus {
+  WATCHLIST
+  WATCHING
+  WATCHED
+  WANT_TO_LISTEN
+  LISTENING
+  LISTENED
+  WANT_TO_READ
+  READING
+  READ
+  OWNED
+}
+
 model UserProfile {
   id          String   @id @db.Uuid
   username    String   @unique @db.VarChar(24)
@@ -15,6 +34,90 @@ model UserProfile {
   avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  mediaEntries UserMedia[]
 
   @@map("user_profiles")
+}
+
+model MediaItem {
+  id                  String                @id @default(uuid()) @db.Uuid
+  title               String                @db.Text
+  description         String?               @db.Text
+  type                MediaType
+  releaseYear         Int?                  @map("release_year")
+  coverImageUrl       String?               @map("cover_image_url") @db.Text
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  externalIdentifiers ExternalIdentifier[]
+  filmDetails         FilmDetails?
+  albumDetails        AlbumDetails?
+  bookDetails         BookDetails?
+  userEntries         UserMedia[]
+
+  @@index([type, title])
+  @@map("media_items")
+}
+
+model ExternalIdentifier {
+  id          String    @id @default(uuid()) @db.Uuid
+  mediaItemId String    @map("media_item_id") @db.Uuid
+  provider    String    @db.VarChar(40)
+  externalId  String    @map("external_id") @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, externalId])
+  @@index([mediaItemId])
+  @@map("external_identifiers")
+}
+
+model FilmDetails {
+  mediaItemId     String    @id @map("media_item_id") @db.Uuid
+  runtime         Int?
+  director        String?   @db.Text
+  originalLanguage String?  @map("original_language") @db.VarChar(10)
+  mediaItem       MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@map("film_details")
+}
+
+model AlbumDetails {
+  mediaItemId String    @id @map("media_item_id") @db.Uuid
+  artist      String?   @db.Text
+  trackCount  Int?      @map("track_count")
+  releaseDate String?   @map("release_date") @db.VarChar(10)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@map("album_details")
+}
+
+model BookDetails {
+  mediaItemId String    @id @map("media_item_id") @db.Uuid
+  author      String?   @db.Text
+  pageCount   Int?      @map("page_count")
+  publisher   String?   @db.Text
+  isbn        String?   @db.VarChar(32)
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@map("book_details")
+}
+
+model UserMedia {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  mediaItemId String        @map("media_item_id") @db.Uuid
+  status      LibraryStatus @default(WATCHLIST)
+  ratingHalfSteps Int?          @map("rating_half_steps") @db.SmallInt
+  isFavorite  Boolean       @default(false) @map("is_favorite")
+  notes       String?       @db.Text
+  startedAt   DateTime?     @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime?     @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem   MediaItem     @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaItemId])
+  @@index([userId, status])
+  @@map("user_media")
 }

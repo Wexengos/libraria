@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "prisma generate && nest build",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "start:dev": "prisma generate && nest start --watch",
     "typecheck": "prisma generate && tsc --noEmit",
     "prisma:generate": "prisma generate",
