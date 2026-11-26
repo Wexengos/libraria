@@ -1,15 +1,22 @@
+import { lazy, Suspense } from 'react'
 import { Link, NavLink, Route, Routes } from 'react-router-dom'
-import { ArrowDown, ArrowUpRight, BookOpen, Disc3, Film, Library, Search, Sparkles } from 'lucide-react'
+import { ArrowDown, ArrowUpRight, BookOpen, Disc3, Film, Library, Sparkles } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { AuthPage } from './features/auth/auth-page'
 import { ProtectedRoute } from './features/auth/protected-route'
 import { useAuth } from './features/auth/auth-context'
-import { ProfilePage } from './features/profile/profile-page'
-import { CreditsPage, MediaDetailPage, MediaSearchPage } from './features/media/media-pages'
-import { LibraryPage } from './features/library/library-pages'
-import { ListDetailPage, ListsPage } from './features/lists/lists-pages'
-import { ActivityFeedPage, CommunityPage } from './features/social/social-pages'
+import { BlockingLoader } from './components/blocking-loader'
 import { supabase } from './lib/supabase'
+
+const AuthPage = lazy(() => import('./features/auth/auth-page').then((module) => ({ default: module.AuthPage })))
+const ProfilePage = lazy(() => import('./features/profile/profile-page').then((module) => ({ default: module.ProfilePage })))
+const MediaDetailPage = lazy(() => import('./features/media/media-pages').then((module) => ({ default: module.MediaDetailPage })))
+const MediaSearchPage = lazy(() => import('./features/media/media-pages').then((module) => ({ default: module.MediaSearchPage })))
+const CreditsPage = lazy(() => import('./features/media/media-pages').then((module) => ({ default: module.CreditsPage })))
+const LibraryPage = lazy(() => import('./features/library/library-pages').then((module) => ({ default: module.LibraryPage })))
+const ListsPage = lazy(() => import('./features/lists/lists-pages').then((module) => ({ default: module.ListsPage })))
+const ListDetailPage = lazy(() => import('./features/lists/lists-pages').then((module) => ({ default: module.ListDetailPage })))
+const CommunityPage = lazy(() => import('./features/social/social-pages').then((module) => ({ default: module.CommunityPage })))
+const ActivityFeedPage = lazy(() => import('./features/social/social-pages').then((module) => ({ default: module.ActivityFeedPage })))
 
 const categories = [
   { name: 'Films', detail: 'Stories on screen', to: '/films', icon: Film, tone: 'film' },
@@ -85,8 +92,9 @@ export default function App() {
         {session && <NavLink to="/activity">Activity</NavLink>}
         <Link to="/credits">Credits</Link>
       </nav>
-      <div className="top-actions"><button aria-label="Search" className="icon-button"><Search size={18} /></button>{session ? <><Link className="library-nav-link" to="/library">My library</Link><Link className="library-nav-link" to="/lists">My lists</Link><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<Link aria-label="Open library" className="mobile-library" to="/library"><Library size={18} /></Link></div>
+      <div className="top-actions">{session ? <><Link className="library-nav-link" to="/library">My library</Link><Link className="library-nav-link" to="/lists">My lists</Link><Link className="sign-in" to="/profile">My profile <ArrowUpRight size={14} /></Link><button className="sign-out" onClick={() => void supabase?.auth.signOut()}>Sign out</button></> : <Link className="sign-in" to="/sign-in">Sign in <ArrowUpRight size={14} /></Link>}<Link aria-label="Open library" className="mobile-library" to="/library"><Library size={18} /></Link></div>
     </header>
+    <Suspense fallback={<BlockingLoader label="Loading page…" />}>
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sign-in" element={<AuthPage mode="sign-in" />} />
@@ -110,5 +118,6 @@ export default function App() {
       <Route path="/credits" element={<CreditsPage />} />
       <Route path="*" element={<main className="empty-state"><p className="eyebrow">LIBRARIA</p><h1>Page not found.</h1><Link className="text-link" to="/">Back to the beginning <ArrowUpRight size={16} /></Link></main>} />
     </Routes>
+    </Suspense>
   </div>
 }

@@ -2,9 +2,9 @@
 
 Libraria is a cultural catalogue for films, music, and books. The repository is a TypeScript Yarn workspaces monorepo with a React frontend and a NestJS modular-monolith API.
 
-## Current scope: Phase 6 — social features
+## Current scope: Phase 7 — refinement underway
 
-- `frontend/` is a React 19, Vite, and TypeScript application. Tailwind CSS 4 supplies utility styling, with custom CSS for the editorial dark theme. React Router provides routes, TanStack Query handles API state, and Lucide supplies icons.
+- `frontend/` is a React 19, Vite, and TypeScript application. Tailwind CSS 4 supplies utility styling, with custom CSS for the editorial dark theme. React Router provides routes, TanStack Query handles API state, and Lucide supplies icons. Route screens load on demand, and shared React, router, query, and Supabase packages are emitted as separate build chunks.
 - `backend/` is a NestJS REST API. `/api/health` reports API availability and `/api/health/database` verifies PostgreSQL through Prisma.
 - Prisma ORM 7 uses the PostgreSQL driver adapter. Database URLs are assembled from separate environment fields. The API uses `DATABASE_*`; Prisma CLI migrations use optional `DIRECT_DATABASE_*` overrides from `prisma.config.ts`, falling back to `DATABASE_*`.
 - Supabase Auth handles email/password registration and login in the browser. The API validates bearer tokens with Supabase Auth before serving protected profile endpoints; frontend state is for navigation and never grants API access on its own.
@@ -102,4 +102,4 @@ package.json            Yarn workspaces and common commands
 - `GET /api/users/:username/lists` returns public lists, or all of the owner's lists when requested by that owner.
 - Follow and activity tables have foreign keys, indexes, a self-follow check, and RLS without browser-facing policies.
 
-The full product scope and development phases are defined in the Libraria Project Blueprint. Phase 7 refinement remains to be started.
+The full product scope and development phases are defined in the Libraria Project Blueprint. Phase 7 refinement is underway; automated tests, a full responsive/accessibility pass, and deployment preparation remain.
